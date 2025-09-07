@@ -43,7 +43,7 @@ def make_router(config_path: str) -> APIRouter:
 
     # Initialize the index database and the processors
     get_indexer(COLLECTION_NAME, MILVUS_URI, MILVUS_DB)
-    register_all_processors(preload=True)
+    register_all_processors(preload=False)
 
     @router.get("/")
     async def root():
@@ -107,7 +107,7 @@ def make_router(config_path: str) -> APIRouter:
                     raise HTTPException(status_code=500, detail=str(e))
 
                 indexer.index_documents(
-                    documents=documents, collection_name=COLLECTION_NAME
+                    documents=documents, collection_name=COLLECTION_NAME, batch_size=4
                 )
                 indexer.client.flush(COLLECTION_NAME)
 
@@ -194,7 +194,7 @@ def make_router(config_path: str) -> APIRouter:
                     raise HTTPException(status_code=500, detail=str(e))
 
                 indexer.index_documents(
-                    documents=modified_documents, collection_name=COLLECTION_NAME
+                    documents=modified_documents, collection_name=COLLECTION_NAME, batch_size=4
                 )
                 indexer.client.flush(COLLECTION_NAME)
 
@@ -276,7 +276,7 @@ def make_router(config_path: str) -> APIRouter:
 
                 # Index the new document
                 indexer.index_documents(
-                    documents=documents, collection_name=COLLECTION_NAME
+                    documents=documents, collection_name=COLLECTION_NAME, batch_size=4
                 )
                 indexer.client.flush(COLLECTION_NAME)
 

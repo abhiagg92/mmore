@@ -12,6 +12,7 @@ from langchain_core.language_models.chat_models import BaseChatModel
 # HF Models
 from langchain_huggingface import ChatHuggingFace, HuggingFacePipeline
 from langchain_mistralai import ChatMistralAI
+from langchain_ollama import ChatOllama
 
 # Proprietary Models
 from langchain_openai import ChatOpenAI
@@ -52,6 +53,7 @@ loaders = {
     "MISTRAL": ChatMistralAI,
     "COHERE": ChatCohere,
     "HF": ChatHuggingFace,
+    "OLLAMA": ChatOllama,
 }
 
 
@@ -89,11 +91,12 @@ class LLMConfig:
 
     @property
     def generation_kwargs(self):
-        max_token_key = (
-            "max_new_tokens"
-            if (self.organization in ["ANTHROPIC", "MISTRAL", "COHERE", "HF"])
-            else "max_completion_tokens"
-        )
+        if (self.organization in ["ANTHROPIC", "MISTRAL", "COHERE", "HF"]):
+            max_token_key = "max_new_tokens"
+        elif (self.organization == "OLLAMA"):
+            max_token_key = "num_predict"
+        else:
+            max_token_key = "max_completion_tokens"
         return {"temperature": self.temperature, max_token_key: self.max_new_tokens}
 
     @property
@@ -138,6 +141,13 @@ class LLM(BaseChatModel):
                     device=cls.device_count - 1,
                     pipeline_kwargs=config.generation_kwargs,
                 )
+            )
+        elif config.organization == "OLLAMA":
+            return ChatOllama(
+                model=config.llm_name,
+                validate_model_on_init=True,
+                base_url=config.base_url,
+                **config.generation_kwargs,
             )
         else:
             loader = loaders.get(cast(str, config.organization), ChatOpenAI)

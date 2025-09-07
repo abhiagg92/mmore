@@ -1,0 +1,26 @@
+services:
+  mmore:
+    image: mmore
+    container_name: mmore_container
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./examples:/app/examples
+      - ./.cache:/home/mmoreuser/.cache
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    stdin_open: true   # equivalent to -it (interactive terminal)
+    tty: true          # keep TTY open
+    environment:
+      - OLLAMA_API_BASE=http://ollama-server:11434
+    networks:
+      - ollama_net
+
+networks:
+  ollama_net:
+    external: true # Connect to the existing Ollama network
