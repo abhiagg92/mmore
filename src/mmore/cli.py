@@ -209,8 +209,8 @@ def rag(config_file: str):
 @click.option(
     "--port", type=int, default=8000, help="Port on which the API should be run."
 )
-def index_api(config_file, host, port):
-    """Run the Index API.
+def api(config_file, host, port):
+    """Run the MMore API.
 
     Args:
       config_file: Path to the retriever configuration file.
@@ -220,7 +220,7 @@ def index_api(config_file, host, port):
     Returns:
 
     """
-    from .run_index_api import run_api
+    from .api import run_api
 
     run_api(config_file, host, port)
 

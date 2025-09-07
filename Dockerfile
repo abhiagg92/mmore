@@ -47,4 +47,4 @@ RUN .venv/bin/uv pip install --no-cache ${UV_ARGUMENTS} -e .
 ENV PATH="/app/.venv/bin:$PATH"
 ENV DASK_DISTRIBUTED__WORKER__DAEMON=False
 
-ENTRYPOINT ["/bin/bash"]
+ENTRYPOINT ["./scripts/server.sh"]

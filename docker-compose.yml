@@ -7,8 +7,6 @@ services:
     volumes:
       - ./examples:/app/examples
       - ./.cache:/home/mmoreuser/.cache
-    stdin_open: true   # equivalent to -it (interactive terminal)
-    tty: true          # keep TTY open
     environment:
       - OLLAMA_API_BASE=http://ollama-server:11434
     networks:
