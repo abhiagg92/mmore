@@ -6,6 +6,8 @@ import tempfile
 from pathlib import Path as FilePath
 from typing import List, cast
 
+from mmore.run_rag import RAGInput, RAGOutput, RAGPipeline, RAGInferenceConfig
+
 import uvicorn
 from fastapi import APIRouter, FastAPI, File, Form, HTTPException, Path, UploadFile
 from fastapi.responses import FileResponse
@@ -35,15 +37,17 @@ logger = logging.getLogger(__name__)
 def make_router(config_path: str) -> APIRouter:
     router = APIRouter()
 
-    config = load_config(config_path, RetrieverConfig)
+    config = load_config(config_path, RAGInferenceConfig)
 
-    MILVUS_URI = config.db.uri or "./proc_demo.db"
-    MILVUS_DB = config.db.name or "my_db"
-    COLLECTION_NAME = config.collection_name or "my_docs"
+    MILVUS_URI = config.rag.retriever.db.uri or "./proc_demo.db"
+    MILVUS_DB = config.rag.retriever.db.name or "my_db"
+    COLLECTION_NAME = config.rag.retriever.collection_name or "my_docs"
 
     # Initialize the index database and the processors
     get_indexer(COLLECTION_NAME, MILVUS_URI, MILVUS_DB)
     register_all_processors(preload=False)
+
+    rag_pp = RAGPipeline.from_config(config.rag)
 
     @router.get("/")
     async def root():
@@ -95,28 +99,28 @@ def make_router(config_path: str) -> APIRouter:
                     temp_dir, COLLECTION_NAME, [file_extension]
                 )
 
-                for doc in documents:
-                    defDocId = doc.document_id
-                    doc.document_id = fileId
-                    doc.id = doc.id.replace(defDocId, fileId)
+            for doc in documents:
+                defDocId = doc.document_id
+                doc.document_id = fileId
+                doc.id = doc.id.replace(defDocId, fileId)
 
-                # Get indexer and index the document
-                try:
-                    indexer = get_indexer(COLLECTION_NAME, MILVUS_URI, MILVUS_DB)
-                except Exception as e:
-                    raise HTTPException(status_code=500, detail=str(e))
+            # Get indexer and index the document
+            try:
+                indexer = get_indexer(COLLECTION_NAME, MILVUS_URI, MILVUS_DB)
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=str(e))
 
-                indexer.index_documents(
-                    documents=documents, collection_name=COLLECTION_NAME, batch_size=4
-                )
-                indexer.client.flush(COLLECTION_NAME)
+            indexer.index_documents(
+                documents=documents, collection_name=COLLECTION_NAME, batch_size=4
+            )
+            indexer.client.flush(COLLECTION_NAME)
 
-                return {
-                    "status": "success",
-                    "message": f"File successfully indexed in {COLLECTION_NAME} collection",
-                    "fileId": fileId,
-                    "filename": file.filename,
-                }
+            return {
+                "status": "success",
+                "message": f"File successfully indexed in {COLLECTION_NAME} collection",
+                "fileId": fileId,
+                "filename": file.filename,
+            }
 
         except Exception as e:
             logger.error(f"Error uploading file: {str(e)}", exc_info=True)
@@ -394,8 +398,14 @@ def make_router(config_path: str) -> APIRouter:
             logger.error(f"Error downloading file: {str(e)}", exc_info=True)
             raise HTTPException(status_code=500, detail=str(e))
 
-    return router
+    @router.post("/v1/rag", response_model=RAGOutput, tags=["Rag Operations"])
+    async def run_rag(request: RAGInput):
+        # Extract the inner input dict to pass to rag_chain
+        pipeline_input = request.input.model_dump()
+        output_dict = rag_pp.rag_chain.invoke(pipeline_input)
+        return RAGOutput(**output_dict)
 
+    return router
 
 def run_api(config_file: str, host: str, port: int):
     router = make_router(config_file)

@@ -7,13 +7,6 @@ services:
     volumes:
       - ./examples:/app/examples
       - ./.cache:/home/mmoreuser/.cache
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
     stdin_open: true   # equivalent to -it (interactive terminal)
     tty: true          # keep TTY open
     environment:
