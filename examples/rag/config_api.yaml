@@ -10,8 +10,8 @@ rag:
   # Retriever Config
   retriever:
     db:
-      uri: ./proc_demo.db
-      name: my_db
+      uri: http://standalone:19530
+      name: default
     hybrid_search_weight: 0.5
     k: 5
     collection_name: my_docs

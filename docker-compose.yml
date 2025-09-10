@@ -5,13 +5,16 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./examples:/app/examples
-      - ./.cache:/home/mmoreuser/.cache
+      - ./config.yaml:/app/examples/rag/config_api.yaml
+      - ./cache:/home/mmoreuser/.cache
     environment:
       - OLLAMA_API_BASE=http://ollama-server:11434
     networks:
       - ollama_net
+      - milvus
 
 networks:
   ollama_net:
     external: true # Connect to the existing Ollama network
+  milvus:
+    external: true
