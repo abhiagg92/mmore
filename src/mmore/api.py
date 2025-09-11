@@ -96,7 +96,7 @@ def make_router(config_path: str) -> APIRouter:
                 # Process and index the file
                 file_extension = FilePath(file.filename).suffix.lower()
                 documents = process_files_default(
-                    temp_dir, COLLECTION_NAME, [file_extension]
+                    temp_dir, COLLECTION_NAME, config.rag.postprocessor, [file_extension]
                 )
 
             for doc in documents:
@@ -179,7 +179,7 @@ def make_router(config_path: str) -> APIRouter:
                     FilePath(cast(str, file.filename)).suffix.lower() for file in files
                 ]
                 documents = process_files_default(
-                    temp_dir, COLLECTION_NAME, file_extensions
+                    temp_dir, COLLECTION_NAME, config.rag.postprocessor, file_extensions
                 )
 
                 # Change the IDs to match the ones from the client
@@ -250,7 +250,7 @@ def make_router(config_path: str) -> APIRouter:
                 # Process and index the file
                 file_extension = FilePath(file.filename).suffix.lower()
                 documents = process_files_default(
-                    temp_dir, COLLECTION_NAME, [file_extension]
+                    temp_dir, COLLECTION_NAME, config.rag.postprocessor, [file_extension]
                 )
 
                 # Set the custom ID

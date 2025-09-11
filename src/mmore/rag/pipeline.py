@@ -17,6 +17,7 @@ from ..utils import load_config
 from .llm import LLM, LLMConfig
 from .retriever import Retriever, RetrieverConfig
 from .types import MMOREInput, MMOREOutput
+from ..process.post_processor.pipeline import PPPipelineConfig
 
 DEFAULT_PROMPT = """\
 Use the following context to answer the questions. If none of the context answer the question, just say you don't know.
@@ -30,6 +31,7 @@ Context:
 class RAGConfig:
     """Configuration for RAG pipeline."""
 
+    postprocessor: PPPipelineConfig
     retriever: RetrieverConfig
     llm: LLMConfig = field(default_factory=lambda: LLMConfig(llm_name="gpt2"))
     system_prompt: str = DEFAULT_PROMPT

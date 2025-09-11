@@ -184,6 +184,7 @@ def get_retriever(uri: str, db_name: str) -> "Retriever":
 def process_files_default(
     temp_dir: str,
     collection_name: str,
+    pp_config,
     extensions: List[str] = [
         ".pdf",
         ".docx",
@@ -230,12 +231,7 @@ def process_files_default(
     raw_documents = sum(list(dispatcher()), [])
 
     # post-processing (chunking)
-    default_config = {
-        "pp_modules": [{"type": "chunker"}],
-        "output": {"output_path": output_path},
-    }
-    config: PPPipelineConfig = load_config(default_config, PPPipelineConfig)
-    pipeline = PPPipeline.from_config(config)
+    pipeline = PPPipeline.from_config(pp_config)
     chunked = pipeline(raw_documents)
 
     return chunked

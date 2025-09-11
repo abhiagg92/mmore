@@ -5,7 +5,6 @@ from chonkie import (
     SemanticChunker,
     SentenceChunker,
     TokenChunker,
-    WordChunker,
 )
 
 
@@ -14,8 +13,6 @@ def load_chonkie(chunking_strategy: str, chunking_args: Dict[str, Any]) -> BaseC
         return SentenceChunker(**chunking_args)
     elif chunking_strategy == "semantic":
         return SemanticChunker(**chunking_args)
-    elif chunking_strategy == "word":
-        return WordChunker(**chunking_args)
     elif chunking_strategy == "token":
         return TokenChunker(**chunking_args)
     else:
