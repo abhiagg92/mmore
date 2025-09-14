@@ -41,10 +41,9 @@ def make_router(config_path: str) -> APIRouter:
 
     MILVUS_URI = config.rag.retriever.db.uri or "./proc_demo.db"
     MILVUS_DB = config.rag.retriever.db.name or "my_db"
-    COLLECTION_NAME = config.rag.retriever.collection_name or "my_docs"
+    DEFAULT_COLLECTION_NAME = config.rag.retriever.collection_name or "def_docs"
 
-    # Initialize the index database and the processors
-    get_indexer(COLLECTION_NAME, MILVUS_URI, MILVUS_DB)
+    get_indexer(DEFAULT_COLLECTION_NAME, MILVUS_URI, MILVUS_DB)
     register_all_processors(preload=False)
 
     rag_pp = RAGPipeline.from_config(config.rag)
@@ -55,11 +54,50 @@ def make_router(config_path: str) -> APIRouter:
             "message": "Indexer API is running (what are you doing here...go catch it!)"
         }
 
+    @router.get("/collections")
+    async def get_collections():
+        """
+        List all collections in the vector database.
+        """
+        try:
+            client = MilvusClient(uri=MILVUS_URI, db_name=MILVUS_DB, enable_sparse=True)
+            collections = client.list_collections()
+            return {"collections": collections}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+        finally:
+            client.close()
+    
+    @router.get("/collections/{collection_name}")
+    async def get_collection_stats(
+        collection_name: str = Path(..., description="The name of the collection to retrieve stats for")
+    ):
+        """
+        Get statistics for a specific collection.
+        """
+        try:
+            client = MilvusClient(uri=MILVUS_URI, db_name=MILVUS_DB, enable_sparse=True)
+            result = client.query(
+                collection_name=collection_name,
+                filter="document_id != ''",
+                output_fields=["document_id"]
+            )
+            row_count = {}
+            for row in result:
+                doc_id = row["document_id"]
+                row_count[doc_id] = row_count.get(doc_id, 0) + 1
+            return {"collection_name": collection_name, "stats": {"count": len(result), "files": row_count}}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+        finally:
+            client.close()
+
     # SINGLE FILE UPLOAD ENDPOINT
     @router.post("/v1/files", status_code=201, tags=["File Operations"])
     async def upload_file(
         fileId: str = Form(..., description="Unique identifier for the file"),
         file: UploadFile = File(..., description="The file content"),
+        collection_name: str = Form(..., description="The name of the collection to index the file"),
     ):
         """
         Upload a new file with a unique identifier.
@@ -96,7 +134,7 @@ def make_router(config_path: str) -> APIRouter:
                 # Process and index the file
                 file_extension = FilePath(file.filename).suffix.lower()
                 documents = process_files_default(
-                    temp_dir, COLLECTION_NAME, config.rag.postprocessor, [file_extension]
+                    temp_dir, collection_name, config.rag.postprocessor, [file_extension]
                 )
 
             for doc in documents:
@@ -106,18 +144,18 @@ def make_router(config_path: str) -> APIRouter:
 
             # Get indexer and index the document
             try:
-                indexer = get_indexer(COLLECTION_NAME, MILVUS_URI, MILVUS_DB)
+                indexer = get_indexer(collection_name, MILVUS_URI, MILVUS_DB)
             except Exception as e:
                 raise HTTPException(status_code=500, detail=str(e))
 
             indexer.index_documents(
-                documents=documents, collection_name=COLLECTION_NAME, batch_size=4
+                documents=documents, collection_name=collection_name, batch_size=4
             )
-            indexer.client.flush(COLLECTION_NAME)
+            indexer.client.flush(collection_name)
 
             return {
                 "status": "success",
-                "message": f"File successfully indexed in {COLLECTION_NAME} collection",
+                "message": f"File successfully indexed in {collection_name} collection",
                 "fileId": fileId,
                 "filename": file.filename,
             }
@@ -130,6 +168,7 @@ def make_router(config_path: str) -> APIRouter:
     async def upload_files(
         listIds: List[str] = Form(..., description="List of IDs for the files"),
         files: List[UploadFile] = File(..., description="Files to upload"),
+        collection_name: str = Form(..., description="The name of the collection to index the files"),
     ):
         """
         Upload multiple files with custom IDs and index them.
@@ -179,7 +218,7 @@ def make_router(config_path: str) -> APIRouter:
                     FilePath(cast(str, file.filename)).suffix.lower() for file in files
                 ]
                 documents = process_files_default(
-                    temp_dir, COLLECTION_NAME, config.rag.postprocessor, file_extensions
+                    temp_dir, collection_name, config.rag.postprocessor, file_extensions
                 )
 
                 # Change the IDs to match the ones from the client
@@ -193,14 +232,14 @@ def make_router(config_path: str) -> APIRouter:
                 logging.info("Indexing the files")
 
                 try:
-                    indexer = get_indexer(COLLECTION_NAME, MILVUS_URI, MILVUS_DB)
+                    indexer = get_indexer(collection_name, MILVUS_URI, MILVUS_DB)
                 except Exception as e:
                     raise HTTPException(status_code=500, detail=str(e))
 
                 indexer.index_documents(
-                    documents=modified_documents, collection_name=COLLECTION_NAME, batch_size=4
+                    documents=modified_documents, collection_name=collection_name, batch_size=4
                 )
-                indexer.client.flush(COLLECTION_NAME)
+                indexer.client.flush(collection_name)
 
                 return {
                     "status": "success",
@@ -218,6 +257,7 @@ def make_router(config_path: str) -> APIRouter:
     async def update_file(
         fileId: str = Path(..., description="ID of the file to update"),
         file: UploadFile = File(..., description="The new file content"),
+        collection_name: str = Form(..., description="The name of the collection to index the files"),
     ):
         """
         Replace an existing file with a new version.
@@ -250,7 +290,7 @@ def make_router(config_path: str) -> APIRouter:
                 # Process and index the file
                 file_extension = FilePath(file.filename).suffix.lower()
                 documents = process_files_default(
-                    temp_dir, COLLECTION_NAME, config.rag.postprocessor, [file_extension]
+                    temp_dir, collection_name, config.rag.postprocessor, [file_extension]
                 )
 
                 # Set the custom ID
@@ -259,7 +299,7 @@ def make_router(config_path: str) -> APIRouter:
 
                 # Get indexer and reindex the document
                 try:
-                    indexer = get_indexer(COLLECTION_NAME, MILVUS_URI, MILVUS_DB)
+                    indexer = get_indexer(collection_name, MILVUS_URI, MILVUS_DB)
                 except Exception as e:
                     raise HTTPException(status_code=500, detail=str(e))
 
@@ -270,7 +310,7 @@ def make_router(config_path: str) -> APIRouter:
                         uri=MILVUS_URI, db_name=MILVUS_DB, enable_sparse=True
                     )
                     client.delete(
-                        collection_name=COLLECTION_NAME,
+                        collection_name=collection_name,
                         filter=f"document_id == '{fileId}'",
                     )
                 except Exception as delete_error:
@@ -280,9 +320,9 @@ def make_router(config_path: str) -> APIRouter:
 
                 # Index the new document
                 indexer.index_documents(
-                    documents=documents, collection_name=COLLECTION_NAME, batch_size=4
+                    documents=documents, collection_name=collection_name, batch_size=4
                 )
-                indexer.client.flush(COLLECTION_NAME)
+                indexer.client.flush(collection_name)
 
                 return {
                     "status": "success",
@@ -301,6 +341,7 @@ def make_router(config_path: str) -> APIRouter:
     @router.delete("/v1/files/{fileId}", tags=["File Operations"])
     async def delete_file(
         fileId: str = Path(..., description="ID of the file to delete"),
+        collection_name: str = Form(..., description="The name of the collection to delete the file from"),
     ):
         """
         Delete a file from the system.
@@ -320,7 +361,7 @@ def make_router(config_path: str) -> APIRouter:
                     uri=MILVUS_URI, db_name=MILVUS_DB, enable_sparse=True
                 )
                 delete_result = client.delete(
-                    collection_name=COLLECTION_NAME, filter=f"document_id == '{fileId}'"
+                    collection_name=collection_name, filter=f"document_id == '{fileId}'"
                 )
                 # Delete the physical file
                 os.remove(file_storage_path)
@@ -346,6 +387,7 @@ def make_router(config_path: str) -> APIRouter:
     @router.get("/v1/files/{fileId}", tags=["File Operations"])
     async def download_file(
         fileId: str = Path(..., description="ID of the file to download"),
+        collection_name: str = Form(..., description="The name of the collection to download the file from"),
     ):
         """
         Download a file from the system.
@@ -364,7 +406,7 @@ def make_router(config_path: str) -> APIRouter:
                     uri=MILVUS_URI, db_name=MILVUS_DB, enable_sparse=True
                 )
                 file_paths = client.query(
-                    collection_name=COLLECTION_NAME,
+                    collection_name=collection_name,
                     filter=f"document_id == '{fileId}'",
                     output_fields=["file_path"],
                 )

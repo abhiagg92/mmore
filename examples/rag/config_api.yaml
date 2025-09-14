@@ -24,7 +24,7 @@ rag:
       name: default
     hybrid_search_weight: 0.5
     k: 5
-    collection_name: my_docs
+    collection_name: def_docs
   # Prompt Args
   system_prompt: "Answer the question using the context.\n\nContext: {context}"
 # Mode Config

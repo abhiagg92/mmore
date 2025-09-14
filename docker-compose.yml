@@ -7,6 +7,9 @@ services:
     volumes:
       - ./config.yaml:/app/examples/rag/config_api.yaml
       - ./cache:/home/mmoreuser/.cache
+      - ./docs:/app/uploads
+    # stdin_open: true   # equivalent to -it (interactive terminal)
+    # tty: true          # keep TTY open
     environment:
       - OLLAMA_API_BASE=http://ollama-server:11434
     networks:
