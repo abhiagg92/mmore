@@ -94,6 +94,27 @@ def make_router(config_path: str) -> APIRouter:
             raise HTTPException(status_code=500, detail=str(e))
         finally:
             client.close()
+    
+    # Endpoint to delete collection
+    @router.delete("/collections/{collection_name}", tags=["Collection Operations"])
+    async def delete_collection(
+        collection_name: str = Path(..., description="The name of the collection to delete")
+    ):
+        """
+        Delete a collection from the vector database.
+        """
+        try:
+            client = MilvusClient(uri=MILVUS_URI, db_name=MILVUS_DB, enable_sparse=True)
+            if collection_name not in client.list_collections():
+                raise HTTPException(status_code=404, detail=f"Collection {collection_name} not found")
+            client.drop_collection(collection_name)
+            return {"status": "success", "message": f"Collection {collection_name} deleted"}
+        except HTTPException as e:
+            raise e
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+        finally:
+            client.close()
 
     # SINGLE FILE UPLOAD ENDPOINT
     @router.post("/v1/files", status_code=201, tags=["File Operations"])

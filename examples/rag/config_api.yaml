@@ -27,14 +27,14 @@ rag:
     collection_name: def_docs
     # Dense Model Config
     dense_config:
-      model_name: nomic-embed-text:latest
+      model_name: dengcao/Qwen3-Embedding-0.6B:Q8_0
       organization: OLLAMA
       base_url: http://ollama-server:11434
     # Sparse Model Config
     sparse_config:
       model_name: naver/splade-cocondenser-selfdistil
   # Prompt Args
-  system_prompt: "Answer the question using the context.\n\nContext: {context}"
+  system_prompt: "Answer the question using only the provided context.\n\nContext: {context}. If there is no relevant information, say 'I don't know'."
 # Mode Config
 mode: api
 mode_args:

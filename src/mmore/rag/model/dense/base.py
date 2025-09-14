@@ -92,7 +92,6 @@ class DenseModel(Embeddings):
             return OllamaEmbeddings(
                 model=config.model_name,
                 base_url=config.base_url,
-                keep_alive="1m",
             )
         else:
             return loaders[config.organization](model=config.model_name)
