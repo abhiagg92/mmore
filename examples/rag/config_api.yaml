@@ -12,7 +12,7 @@ rag:
       save_each_step: True
   # LLM Config
   llm: 
-    llm_name: gemma3:4b # "epfl-llm/meditron-70b" # "gpt-4o-mini" # Anything supported
+    llm_name: gemma3:4b
     max_new_tokens: 5000
     temperature: 0.8
     organization: OLLAMA
@@ -25,6 +25,14 @@ rag:
     hybrid_search_weight: 0.5
     k: 5
     collection_name: def_docs
+    # Dense Model Config
+    dense_config:
+      model_name: nomic-embed-text:latest
+      organization: OLLAMA
+      base_url: http://ollama-server:11434
+    # Sparse Model Config
+    sparse_config:
+      model_name: naver/splade-cocondenser-selfdistil
   # Prompt Args
   system_prompt: "Answer the question using the context.\n\nContext: {context}"
 # Mode Config

@@ -6,6 +6,8 @@ import yaml
 from dacite import from_dict
 from pymilvus import MilvusClient
 
+from .rag.model import DenseModelConfig, SparseModelConfig
+
 if TYPE_CHECKING:
     from .index.indexer import Indexer
     from .rag.retriever import Retriever, RetrieverConfig
@@ -61,21 +63,12 @@ indexers = {}
 retrievers = {}
 
 
-def create_new_indexer(collection_name: str, uri: str, db_name: str) -> "Indexer":
+def create_new_indexer(collection_name: str, uri: str, db_name: str, dense_config: DenseModelConfig, sparse_config: SparseModelConfig) -> "Indexer":
     """Create a new indexer with default configuration"""
 
     from .index.indexer import DBConfig, Indexer, IndexerConfig
-    from .rag.model.dense.base import DenseModelConfig
-    from .rag.model.sparse.base import SparseModelConfig
 
     try:
-        # Default model configurations
-        dense_config = DenseModelConfig(
-            model_name="sentence-transformers/all-MiniLM-L6-v2", is_multimodal=False
-        )
-
-        sparse_config = SparseModelConfig(model_name="splade", is_multimodal=False)
-
         db_config = DBConfig(uri=uri, name=db_name)
 
         # Create indexer config
@@ -102,7 +95,7 @@ def create_new_indexer(collection_name: str, uri: str, db_name: str) -> "Indexer
         raise Exception(f"Unable to create a new indexer: {str(e)}")
 
 
-def get_indexer(collection_name: str, uri: str, db_name: str) -> "Indexer":
+def get_indexer(collection_name: str, uri: str, db_name: str, dense_config: DenseModelConfig, sparse_config: SparseModelConfig) -> "Indexer":
     """Get an existing indexer in cached Dict or load from the collection"""
 
     from .index.indexer import Indexer, get_model_from_index
@@ -118,17 +111,7 @@ def get_indexer(collection_name: str, uri: str, db_name: str) -> "Indexer":
         collections = client.list_collections()
 
         if collection_name not in collections:
-            return create_new_indexer(collection_name, uri, db_name)
-
-        # Get model configs from the collection
-        dense_config = cast(
-            DenseModelConfig,
-            get_model_from_index(client, "dense_embedding", collection_name),
-        )
-        sparse_config = cast(
-            SparseModelConfig,
-            get_model_from_index(client, "sparse_embedding", collection_name),
-        )
+            return create_new_indexer(collection_name, uri, db_name, dense_config, sparse_config)
 
         # Create and store the indexer
         indexer = Indexer(

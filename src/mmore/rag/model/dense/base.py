@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Optional
 
 from langchain_aws import BedrockEmbeddings
 from langchain_cohere import CohereEmbeddings
@@ -8,6 +9,7 @@ from langchain_huggingface.embeddings import HuggingFaceEmbeddings
 from langchain_mistralai import MistralAIEmbeddings
 from langchain_nvidia_ai_endpoints import NVIDIAEmbeddings
 from langchain_openai import OpenAIEmbeddings
+from langchain_ollama import OllamaEmbeddings
 
 from .multimodal import MultimodalEmbeddings
 
@@ -31,6 +33,8 @@ _NVIDIA_MODELS = ["nvidia-clarity-text-embedding-v1", "nvidia-megatron-embedding
 
 _AWS_MODELS = ["amazon-titan-embedding-xlarge", "amazon-titan-embedding-light"]
 
+_OLLAMA_MODELS = ["llama2", "llama3", "vicuna", "alpaca", "wizardlm"]
+
 
 loaders = {
     "OPENAI": OpenAIEmbeddings,
@@ -42,6 +46,7 @@ loaders = {
     "HF": lambda model, **kwargs: HuggingFaceEmbeddings(
         model_name=model, model_kwargs={"trust_remote_code": True}, **kwargs
     ),
+    "OLLAMA": OllamaEmbeddings,
     "FAKE": lambda **kwargs: FakeEmbeddings(
         size=2048
     ),  # For testing purposes, don't use in production
@@ -52,25 +57,30 @@ loaders = {
 class DenseModelConfig:
     model_name: str
     is_multimodal: bool = False
+    organization: Optional[str] = None
+    base_url: Optional[str] = None  # For Ollama server URL
 
-    @property
-    def organization(self) -> str:
-        if self.model_name in _OPENAI_MODELS:
-            return "OPENAI"
+    def __post_init__(self) -> None:
+        if self.organization:
+            self.organization = self.organization.upper()
+        elif self.model_name in _OPENAI_MODELS:
+            self.organization = "OPENAI"
         elif self.model_name in _GOOGLE_MODELS:
-            return "GOOGLE"
+            self.organization = "GOOGLE"
         elif self.model_name in _COHERE_MODELS:
-            return "COHERE"
+            self.organization = "COHERE"
         elif self.model_name in _MISTRAL_MODELS:
-            return "MISTRAL"
+            self.organization = "MISTRAL"
         elif self.model_name in _NVIDIA_MODELS:
-            return "NVIDIA"
+            self.organization = "NVIDIA"
         elif self.model_name in _AWS_MODELS:
-            return "AWS"
+            self.organization = "AWS"
+        elif self.model_name in _OLLAMA_MODELS:
+            self.organization = "OLLAMA"
         elif self.model_name == "debug":
-            return "FAKE"  # For testing purposes
+            self.organization = "FAKE"  # For testing purposes
         else:
-            return "HF"
+            self.organization = "HF"
 
 
 class DenseModel(Embeddings):
@@ -78,5 +88,11 @@ class DenseModel(Embeddings):
     def from_config(cls, config: DenseModelConfig) -> Embeddings:
         if config.organization == "HF" and config.is_multimodal:
             return MultimodalEmbeddings(model_name=config.model_name)
+        elif config.organization == "OLLAMA":
+            return OllamaEmbeddings(
+                model=config.model_name,
+                base_url=config.base_url,
+                keep_alive="1m",
+            )
         else:
             return loaders[config.organization](model=config.model_name)

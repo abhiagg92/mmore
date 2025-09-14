@@ -29,6 +29,8 @@ class RetrieverConfig:
     hybrid_search_weight: float = 0.5
     k: int = 1
     collection_name: str = "my_docs"
+    dense_config: DenseModelConfig = field(default_factory=DenseModelConfig)
+    sparse_config: SparseModelConfig = field(default_factory=SparseModelConfig)
     use_web: bool = False
 
 
@@ -60,20 +62,11 @@ class Retriever(BaseRetriever):
                 "Ensure the path is valid with a database that was already populated with the indexer."
             )
 
-        # Init models
-        dense_model_config = cast(
-            DenseModelConfig,
-            get_model_from_index(client, "dense_embedding", config.collection_name),
-        )
-        dense_model = DenseModel.from_config(dense_model_config)
-        logger.info(f"Loaded dense model: {dense_model_config}")
+        dense_model = DenseModel.from_config(config.dense_config)
+        logger.info(f"Loaded dense model: {config.dense_config}")
 
-        sparse_model_config = cast(
-            SparseModelConfig,
-            get_model_from_index(client, "sparse_embedding", config.collection_name),
-        )
-        sparse_model = SparseModel.from_config(sparse_model_config)
-        logger.info(f"Loaded sparse model: {sparse_model_config}")
+        sparse_model = SparseModel.from_config(config.sparse_config)
+        logger.info(f"Loaded sparse model: {config.sparse_config}")
 
         return cls(
             dense_model=dense_model,

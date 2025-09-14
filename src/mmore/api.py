@@ -43,7 +43,10 @@ def make_router(config_path: str) -> APIRouter:
     MILVUS_DB = config.rag.retriever.db.name or "my_db"
     DEFAULT_COLLECTION_NAME = config.rag.retriever.collection_name or "def_docs"
 
-    get_indexer(DEFAULT_COLLECTION_NAME, MILVUS_URI, MILVUS_DB)
+    dense_config = config.rag.retriever.dense_config
+    sparse_config = config.rag.retriever.sparse_config
+
+    get_indexer(DEFAULT_COLLECTION_NAME, MILVUS_URI, MILVUS_DB, dense_config, sparse_config)
     register_all_processors(preload=False)
 
     rag_pp = RAGPipeline.from_config(config.rag)
@@ -144,7 +147,7 @@ def make_router(config_path: str) -> APIRouter:
 
             # Get indexer and index the document
             try:
-                indexer = get_indexer(collection_name, MILVUS_URI, MILVUS_DB)
+                indexer = get_indexer(collection_name, MILVUS_URI, MILVUS_DB, dense_config, sparse_config)
             except Exception as e:
                 raise HTTPException(status_code=500, detail=str(e))
 
@@ -232,7 +235,7 @@ def make_router(config_path: str) -> APIRouter:
                 logging.info("Indexing the files")
 
                 try:
-                    indexer = get_indexer(collection_name, MILVUS_URI, MILVUS_DB)
+                    indexer = get_indexer(collection_name, MILVUS_URI, MILVUS_DB, dense_config, sparse_config)
                 except Exception as e:
                     raise HTTPException(status_code=500, detail=str(e))
 
@@ -299,7 +302,7 @@ def make_router(config_path: str) -> APIRouter:
 
                 # Get indexer and reindex the document
                 try:
-                    indexer = get_indexer(collection_name, MILVUS_URI, MILVUS_DB)
+                    indexer = get_indexer(collection_name, MILVUS_URI, MILVUS_DB, dense_config, sparse_config)
                 except Exception as e:
                     raise HTTPException(status_code=500, detail=str(e))
 
